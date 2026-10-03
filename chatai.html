@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://api.openai.com; base-uri 'none'; form-action 'none'">
+  <title>ChatAI — Question &amp; Answer</title>
+  <style>
+    :root {
+      --ink: #221f1b;
+      --muted: #6f675e;
+      --line: rgba(34, 31, 27, 0.12);
+      --paper: #f4f0e8;
+      --paper-2: #fffdf9;
+      --sidebar: #221f1b;
+      --sidebar-soft: rgba(255, 253, 249, 0.08);
+      --sidebar-text: #f4f0e8;
+      --accent: #d4532b;
+      --accent-ink: #fff7f2;
+      --user: #24362f;
+      --shadow: 0 18px 40px rgba(34, 31, 27, 0.08);
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --sans: "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select { font: inherit; color: inherit; }
+
+    button { cursor: pointer; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      min-height: 0;
+      padding: 1.25rem;
+      background: var(--sidebar);
+      color: var(--sidebar-text);
+      overflow: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.7rem;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .brand strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .brand span,
+    .hint,
+    .meta,
+    .mode {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .sidebar .brand span,
+    .sidebar .hint { color: rgba(244, 240, 232, 0.62); }
+
+    .side-label {
+      margin: 0 0 0.5rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(244, 240, 232, 0.5);
+    }
+
+    .suggestions, .chips {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .suggestions button,
+    .chips button,
+    .ghost,
+    .text-btn {
+      border: 1px solid transparent;
+      background: var(--sidebar-soft);
+      color: var(--sidebar-text);
+      text-align: left;
+      border-radius: 0.7rem;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .suggestions button:hover,
+    .chips button:hover,
+    .ghost:hover,
+    .text-btn:hover { background: rgba(255, 253, 249, 0.14); }
+
+    .settings {
+      margin-top: auto;
+      display: grid;
+      gap: 0.55rem;
+      padding-top: 0.5rem;
+    }
+
+    .settings label { font-size: 0.82rem; }
+
+    .settings input,
+    .settings select {
+      width: 100%;
+      border: 1px solid rgba(244, 240, 232, 0.16);
+      background: rgba(255, 253, 249, 0.06);
+      color: var(--sidebar-text);
+      border-radius: 0.65rem;
+      padding: 0.6rem 0.7rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 0.45rem;
+    }
+
+    .row button { flex: 1; }
+
+    .primary, .send {
+      border: 0;
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-radius: 0.7rem;
+      padding: 0.65rem 0.9rem;
+    }
+
+    .primary:hover, .send:hover { filter: brightness(1.05); }
+
+    .ghost {
+      background: transparent;
+      border-color: rgba(244, 240, 232, 0.2);
+    }
+
+    .temp {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.82rem;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.9rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    .top-actions { display: flex; gap: 0.5rem; }
+
+    .menu, .new-chat {
+      border: 1px solid var(--line);
+      background: transparent;
+      border-radius: 999px;
+      padding: 0.4rem 0.8rem;
+    }
+
+    .menu { display: none; }
+
+    .thread {
+      flex: 1;
+      overflow: auto;
+      padding: 1.5rem 1.25rem 0.5rem;
+    }
+
+    .column {
+      width: min(740px, 100%);
+      margin: 0 auto;
+    }
+
+    .empty {
+      display: grid;
+      gap: 0.8rem;
+      padding: 8vh 0 2rem;
+    }
+
+    .empty h2 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+    }
+
+    .empty p { margin: 0; max-width: 36rem; color: var(--muted); }
+
+    .empty-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+
+    .empty-actions button, .chips button {
+      border: 1px solid var(--line);
+      background: var(--paper-2);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.55rem 0.8rem;
+      text-align: left;
+    }
+
+    .empty-actions button:hover, .chips button:hover { border-color: var(--ink); }
+
+    .msg { display: flex; margin: 0 0 0.9rem; }
+
+    .msg.user { justify-content: flex-end; }
+
+    .bubble {
+      width: min(100%, 40rem);
+      padding: 0.85rem 1rem 0.75rem;
+      border-radius: 1.1rem;
+      background: var(--paper-2);
+      box-shadow: var(--shadow);
+    }
+
+    .msg.user .bubble {
+      width: min(100%, 32rem);
+      background: var(--user);
+      color: #f6f3ee;
+      box-shadow: none;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .meta strong { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .msg.user .meta, .msg.user .meta span { color: rgba(246, 243, 238, 0.72); }
+
+    .text p { margin: 0.35rem 0 0; }
+
+    .text p:first-child { margin-top: 0; }
+
+    .bubble code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.88em;
+      background: rgba(34, 31, 27, 0.06);
+      padding: 0.05em 0.35em;
+      border-radius: 0.3rem;
+    }
+
+    .msg.user code { background: rgba(255, 253, 249, 0.12); }
+
+    .copy {
+      margin-left: auto;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 0;
+      font-size: 0.78rem;
+    }
+
+    .pending .text { color: var(--muted); }
+
+    .dock {
+      padding: 0.75rem 1.25rem 1rem;
+    }
+
+    .chips {
+      flex-direction: row;
+      flex-wrap: wrap;
+      width: min(740px, 100%);
+      margin: 0 auto 0.6rem;
+    }
+
+    .composer {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.55rem;
+      width: min(740px, 100%);
+      margin: 0 auto;
+      padding: 0.45rem 0.45rem 0.45rem 0.9rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 1.2rem;
+      box-shadow: var(--shadow);
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: transparent;
+      min-height: 1.5rem;
+      max-height: 10rem;
+      padding: 0.45rem 0;
+    }
+
+    .send {
+      border-radius: 0.9rem;
+      min-width: 4.5rem;
+    }
+
+    .send:disabled, .primary:disabled { opacity: 0.55; cursor: default; }
+
+    .mode {
+      width: min(740px, 100%);
+      margin: 0.45rem auto 0;
+    }
+
+    .backdrop {
+      display: none;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    @media (max-width: 860px) {
+      .app { grid-template-columns: 1fr; }
+      .menu { display: inline-flex; }
+      .sidebar {
+        position: fixed;
+        z-index: 30;
+        inset: 0 auto 0 0;
+        width: min(320px, 88vw);
+        transform: translateX(-105%);
+        transition: transform 160ms ease;
+      }
+      .sidebar.open { transform: none; }
+      .backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(34, 31, 27, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 20;
+      }
+      .backdrop.show { opacity: 1; pointer-events: auto; }
+      .empty { padding-top: 4vh; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sidebar { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">Q</span>
+        <div>
+          <strong>ChatAI</strong>
+          <span>Question &amp; answer</span>
+        </div>
+      </div>
+      <div>
+        <p class="side-label">Ask about</p>
+        <div class="suggestions" id="suggestion-list"></div>
+      </div>
+      <form class="settings" id="settings">
+        <p class="side-label">Model settings</p>
+        <label for="model-key">OpenAI key</label>
+        <input id="model-key" type="password" maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste a key to ask anything">
+        <p class="hint">Kept in this browser tab only. Sent only to OpenAI. Never written into this file.</p>
+        <div class="row">
+          <button class="primary" type="submit">Save key</button>
+          <button class="ghost" id="forget-key" type="button" hidden>Remove</button>
+        </div>
+        <label for="voice">Voice</label>
+        <select id="voice">
+          <option value="concise">Concise</option>
+          <option value="kindergarten">Kindergarten teacher</option>
+          <option value="poet">Shakespearean poet</option>
+          <option value="physicist">Impatient physicist</option>
+        </select>
+        <div class="temp">
+          <label for="temperature">Temperature</label>
+          <span id="temperature-value">0.3</span>
+        </div>
+        <input id="temperature" type="range" min="0" max="1.2" step="0.1" value="0.3">
+        <p class="hint">Voice and temperature apply when a key is connected.</p>
+      </form>
+    </aside>
+    <div class="backdrop" id="backdrop" hidden></div>
+    <main class="main">
+      <header class="topbar">
+        <h1>Ask a question</h1>
+        <div class="top-actions">
+          <button class="new-chat" id="new-chat" type="button">New chat</button>
+          <button class="menu" id="menu" type="button" aria-expanded="false" aria-controls="sidebar">Settings</button>
+        </div>
+      </header>
+      <div class="thread" id="thread" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <div class="dock">
+        <div class="chips" id="chips"></div>
+        <form class="composer" id="composer">
+          <label class="sr-only" for="question">Your question</label>
+          <textarea id="question" rows="1" maxlength="4000" placeholder="Ask a question…" required></textarea>
+          <button class="send" id="send" type="submit">Send</button>
+        </form>
+        <p class="mode" id="mode"></p>
+      </div>
+    </main>
+  </div>
+  <noscript>ChatAI needs JavaScript to answer questions in this page.</noscript>
+  <script>
+    const SUGGESTIONS = [
+      "What is RAG in one sentence?",
+      "What does a system prompt change?",
+      "How does temperature affect the answer?",
+      "Why might an LLM hallucinate?",
+      "What is in the response besides the text?"
+    ];
+
+    const VOICES = {
+      concise: "You are concise.",
+      kindergarten: "You are a kindergarten teacher. Explain like the listener is five years old.",
+      poet: "You are a Shakespearean poet. Reply in iambic verse where possible.",
+      physicist: "You are a brilliant but impatient physicist. Accurate, but no niceties."
+    };
+
+    const TOPICS = [
+      {
+        id: "rag",
+        phrases: ["retrieval-augmented", "retrieval augmented"],
+        words: ["rag", "grounding"],
+        answer: "RAG, retrieval-augmented generation, looks up relevant passages and places them in the prompt so the model answers from those sources. In one sentence: RAG fetches useful text first, then asks the model to answer using that text.",
+        more: "Without retrieval, the model can only continue from patterns it learned. With RAG, the call still looks like a normal question, but the prompt now carries the notes you want the answer to follow."
+      },
+      {
+        id: "system",
+        phrases: ["system prompt", "system message"],
+        words: ["voice"],
+        answer: "The system prompt sets the voice for the whole reply. The same question can come back as a kindergarten explanation or Shakespearean verse, while the facts stay put. In these demos, that prompt is the biggest change you can make.",
+        more: "The Week 1 demo sends one fixed question through four voices: concise, kindergarten teacher, Shakespearean poet, and impatient physicist. Run it with python demo_system_prompt.py."
+      },
+      {
+        id: "temperature",
+        phrases: ["high temperature", "low temperature"],
+        words: ["temperature", "variability"],
+        answer: "Temperature controls how much the wording varies from run to run. Near 0, repeats stay close to the same line. Around 1.2, they scatter. It changes variety, not the facts.",
+        more: "The temperature demo asks for a one-line coffee-shop tagline three times at 0 and three times at 1.2. The low setting clusters. The high setting wanders. Run it with python demo_temperature.py."
+      },
+      {
+        id: "hallucination",
+        phrases: ["made up", "not true"],
+        words: ["hallucinate", "hallucination", "hallucinations"],
+        answer: "A model can hallucinate: it writes fluent text that is not true, because it continues a likely pattern instead of checking a source. A short answer can sound sure and still be wrong. Grounding the prompt, as RAG does, lowers that risk.",
+        more: "Confidence is not evidence. If the answer matters, compare it with a source you trust, or give the model the source in the prompt and ask it to stick to that text."
+      },
+      {
+        id: "usage",
+        phrases: ["response object", "prompt tokens", "completion tokens", "in the response"],
+        words: ["token", "tokens", "latency", "cost", "usage"],
+        answer: "The response holds more than the answer text. It reports prompt tokens, completion tokens, total tokens, and the model name. Latency is how long the call took, and cost is estimated from those token counts. These demos use gpt-4o-mini, so a short question stays well under a cent.",
+        more: "Read that breakdown with python demo_response_object.py. Prices move, so treat the printed cost as an estimate, not a bill."
+      },
+      {
+        id: "model",
+        phrases: ["gpt-4o-mini", "which model", "what model"],
+        words: ["mini"],
+        answer: "The Week 1 demos call gpt-4o-mini. It is fast, and a short question costs a fraction of a cent. The model name comes back on the response, so you can confirm what actually answered.",
+        more: "This page uses the same model when you connect a key. Lesson answers on this page do not call a model at all."
+      },
+      {
+        id: "setup",
+        phrases: ["api key", "openai_api_key", ".env", "vocareum"],
+        words: ["setup", "install"],
+        answer: "The API key stays outside the source code. On Vocareum it is already in the terminal. On your own machine, put OPENAI_API_KEY in a .env file next to the demos. This page never stores a key in the file. Paste one into Model settings only if you want live answers; it stays in this browser tab.",
+        more: "Install the demos with pip install --break-system-packages openai python-dotenv. Then run python run.py, or run any demo file on its own."
+      },
+      {
+        id: "call",
+        phrases: ["first call", "llm call", "language model", "chat completion"],
+        words: ["llm"],
+        answer: "A first model call sends one question and reads one answer. The demo does that with a single chat completion: a system message, a user message, and a temperature, sent to gpt-4o-mini.",
+        more: "Run that call with python demo_first_call.py. The question in the script is “What is RAG in one sentence?”"
+      },
+      {
+        id: "prompt",
+        phrases: ["a prompt", "the prompt", "user prompt"],
+        words: [],
+        answer: "A prompt is the text the model reads before it answers. In these demos that is a system line plus your question. Change the system line and the voice changes. Change the question and the subject changes.",
+        more: "The model does not keep this chat on its own. Each call only knows the messages you send with it."
+      },
+      {
+        id: "overview",
+        phrases: ["week 1", "the demos", "these demos"],
+        words: ["run.py"],
+        answer: "Week 1 has four demos: one model call, the system prompt, the response object, and temperature. Each file runs on its own. python run.py runs them in order.",
+        more: "The files are demo_first_call.py, demo_system_prompt.py, demo_response_object.py, and demo_temperature.py."
+      }
+    ];
+
+    const KEY_NAME = "chatai.modelKey";
+    const VOICE_NAME = "chatai.voice";
+    const TEMP_NAME = "chatai.temperature";
+    const memory = new Map();
+    let lastTopicId = null;
+    let history = [];
+    let inflight = null;
+    let requestId = 0;
+
+    function storeGet(name) {
+      try {
+        const value = sessionStorage.getItem(name);
+        if (value !== null) return value;
+      } catch (error) {
+        /* Session storage can be blocked; the page memory still works. */
+      }
+      return memory.has(name) ? memory.get(name) : null;
+    }
+
+    function storeSet(name, value) {
+      memory.set(name, value);
+      try { sessionStorage.setItem(name, value); } catch (error) { /* Keep the in-memory copy. */ }
+    }
+
+    function storeRemove(name) {
+      memory.delete(name);
+      try { sessionStorage.removeItem(name); } catch (error) { /* Already gone from memory. */ }
+    }
+
+    function normalize(text) {
+      return text.toLowerCase().replace(/[^a-z0-9.+-]+/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function hasWord(text, word) {
+      return (" " + text + " ").includes(" " + word + " ");
+    }
+
+    function scoreTopic(text, topic) {
+      let score = 0;
+      topic.phrases.forEach((phrase) => {
+        if (text.includes(phrase)) score += 5;
+      });
+      topic.words.forEach((word) => {
+        if (hasWord(text, word)) score += 2;
+      });
+      return score;
+    }
+
+    function isMore(text) {
+      return /^(tell me more|more detail|more details|go on|expand|say more|elaborate)( please)?$/.test(text);
+    }
+
+    function replyLocal(question) {
+      const text = normalize(question);
+      if (!text) {
+        return { text: "Type a question to begin.", source: "Week 1 notes" };
+      }
+      if (/^(hi|hello|hey|good morning|good afternoon)\b/.test(text)) {
+        return { text: "Hello. Ask a Week 1 question, or connect a model key in Settings to ask anything else.", source: "Week 1 notes" };
+      }
+      if (/^(thanks|thank you|thx)\b/.test(text)) {
+        return { text: "You are welcome. Ask another question whenever you want.", source: "Week 1 notes" };
+      }
+      if (/^(help|what can you do|what can you answer|who are you|what are you|chatai)\b/.test(text) || text === "chatai") {
+        return { text: "I am ChatAI. Ask a question and I will answer it. With no key, I answer from the Week 1 notes: model calls, system prompts, temperature, tokens, hallucinations, and RAG. Connect a key in Settings to send the question to gpt-4o-mini.", source: "Week 1 notes" };
+      }
+      if (isMore(text)) {
+        const topic = TOPICS.find((item) => item.id === lastTopicId);
+        if (!topic) {
+          return { text: "Ask a question first. Then say “tell me more”.", source: "Week 1 notes" };
+        }
+        return { text: topic.more, source: "Week 1 notes" };
+      }
+
+      let best = null;
+      let bestScore = 0;
+      TOPICS.forEach((topic) => {
+        const score = scoreTopic(text, topic);
+        if (score > bestScore) {
+          best = topic;
+          bestScore = score;
+        }
+      });
+
+      if (!best) {
+        return {
+          text: "I can answer from the Week 1 notes: a single model call, system prompts, temperature, tokens and cost, hallucinations, and RAG. Ask one of those. To ask about anything else, add your own model key in Settings. The key stays in this browser tab and is never written into this file.",
+          source: "Week 1 notes"
+        };
+      }
+
+      lastTopicId = best.id;
+      return { text: best.answer, source: "Week 1 notes" };
+    }
+
+    function resetLocal() {
+      lastTopicId = null;
+    }
+
+    function cleanKey(value) {
+      const trimmed = value.trim().replace(/^Bearer\s+/i, "");
+      if (!trimmed || /\s/.test(trimmed) || trimmed.length < 20 || trimmed.length > 256) return "";
+      return trimmed;
+    }
+
+    function hasKey() {
+      const value = storeGet(KEY_NAME);
+      return typeof value === "string" && value.length >= 20;
+    }
+
+    globalThis.ChatAI = { replyLocal, resetLocal, cleanKey, scoreTopic, normalize };
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    }
+
+    function fillRichText(node, text) {
+      text.split(/\n\n+/).forEach((paragraph) => {
+        const p = document.createElement("p");
+        paragraph.split(/(`[^`]+`)/g).forEach((part) => {
+          if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+            p.appendChild(el("code", "", part.slice(1, -1)));
+          } else {
+            p.appendChild(document.createTextNode(part));
+          }
+        });
+        node.appendChild(p);
+      });
+    }
+
+    function init() {
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("backdrop");
+      const menu = document.getElementById("menu");
+      const thread = document.getElementById("thread");
+      const composer = document.getElementById("composer");
+      const question = document.getElementById("question");
+      const send = document.getElementById("send");
+      const mode = document.getElementById("mode");
+      const settings = document.getElementById("settings");
+      const keyInput = document.getElementById("model-key");
+      const forget = document.getElementById("forget-key");
+      const voice = document.getElementById("voice");
+      const temperature = document.getElementById("temperature");
+      const temperatureValue = document.getElementById("temperature-value");
+      const suggestionList = document.getElementById("suggestion-list");
+      const chips = document.getElementById("chips");
+
+      const savedVoice = storeGet(VOICE_NAME);
+      if (savedVoice && Object.prototype.hasOwnProperty.call(VOICES, savedVoice)) voice.value = savedVoice;
+      const savedTemp = storeGet(TEMP_NAME);
+      if (savedTemp !== null && savedTemp !== "" && !Number.isNaN(Number(savedTemp))) {
+        temperature.value = String(Math.min(1.2, Math.max(0, Number(savedTemp))));
+      }
+      temperatureValue.textContent = Number(temperature.value).toFixed(1);
+
+      function setMenu(open) {
+        sidebar.classList.toggle("open", open);
+        backdrop.hidden = !open;
+        backdrop.classList.toggle("show", open);
+        menu.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
+      function refreshKeyUi() {
+        const saved = hasKey();
+        forget.hidden = !saved;
+        keyInput.placeholder = saved ? "Saved for this tab" : "Paste a key to ask anything";
+        mode.textContent = saved
+          ? "Live answers · gpt-4o-mini · your key stays in this tab"
+          : "Lesson answers · Week 1 notes · add a key in Settings to ask anything";
+      }
+
+      function addSuggestion(parent, label) {
+        const button = el("button", "", label);
+        button.type = "button";
+        button.addEventListener("click", () => {
+          if (send.disabled) return;
+          question.value = label;
+          setMenu(false);
+          composer.requestSubmit();
+        });
+        parent.appendChild(button);
+      }
+
+      SUGGESTIONS.forEach((label) => {
+        addSuggestion(suggestionList, label);
+        addSuggestion(chips, label);
+      });
+
+      function showEmpty() {
+        thread.textContent = "";
+        const wrap = el("div", "column");
+        const empty = el("div", "empty");
+        empty.appendChild(el("h2", "", "One question. One answer."));
+        empty.appendChild(el("p", "", "Ask about the Week 1 model demos, or connect your own key and ask anything else."));
+        const actions = el("div", "empty-actions");
+        SUGGESTIONS.slice(0, 3).forEach((label) => addSuggestion(actions, label));
+        empty.appendChild(actions);
+        wrap.appendChild(empty);
+        thread.appendChild(wrap);
+      }
+
+      function appendMessage(role, text, source, pending) {
+        const empty = thread.querySelector(".empty");
+        if (empty) empty.closest(".column").remove();
+        let column = thread.querySelector(".column");
+        if (!column) {
+          column = el("div", "column");
+          thread.appendChild(column);
+        }
+        const msg = el("article", "msg" + (role === "user" ? " user" : "") + (pending ? " pending" : ""));
+        const bubble = el("div", "bubble");
+        const meta = el("div", "meta");
+        meta.appendChild(el("strong", "", role === "user" ? "You" : "ChatAI"));
+        if (source) meta.appendChild(el("span", "", source));
+        if (role === "assistant" && !pending) {
+          const copy = el("button", "copy", "Copy");
+          copy.type = "button";
+          copy.addEventListener("click", () => copyText(text, copy));
+          meta.appendChild(copy);
+        }
+        const body = el("div", "text");
+        fillRichText(body, text);
+        bubble.appendChild(meta);
+        bubble.appendChild(body);
+        msg.appendChild(bubble);
+        column.appendChild(msg);
+        thread.scrollTop = thread.scrollHeight;
+        return msg;
+      }
+
+      async function copyText(text, button) {
+        try {
+          await navigator.clipboard.writeText(text);
+          button.textContent = "Copied";
+        } catch (error) {
+          button.textContent = "Select the answer to copy it";
+        }
+        setTimeout(() => { button.textContent = "Copy"; }, 1400);
+      }
+
+      function autosize() {
+        question.style.height = "auto";
+        question.style.height = Math.min(question.scrollHeight, 160) + "px";
+      }
+
+      function setBusy(busy) {
+        send.disabled = busy;
+        send.textContent = busy ? "…" : "Send";
+        thread.setAttribute("aria-busy", busy ? "true" : "false");
+      }
+
+      async function replyLive(prompt) {
+        const modelKey = storeGet(KEY_NAME);
+        const controller = new AbortController();
+        inflight = controller;
+        let timedOut = false;
+        const timeout = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, 30000);
+        const voiceId = Object.prototype.hasOwnProperty.call(VOICES, voice.value) ? voice.value : "concise";
+        const temp = Math.min(1.2, Math.max(0, Number(temperature.value) || 0));
+        try {
+          const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            referrerPolicy: "no-referrer",
+            signal: controller.signal,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + modelKey
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              temperature: temp,
+              max_tokens: 600,
+              messages: [
+                { role: "system", content: VOICES[voiceId] },
+                ...history.slice(-12),
+                { role: "user", content: prompt }
+              ]
+            })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            if (response.status === 401) return { text: "That key was rejected. Check it in Settings, or remove it to use the Week 1 notes.", source: "Could not answer" };
+            if (response.status === 429) return { text: "The model is limiting requests right now. Wait a moment, then ask again.", source: "Could not answer" };
+            const detail = data.error && data.error.message ? String(data.error.message).slice(0, 300) : "The model could not answer.";
+            return { text: detail, source: "Could not answer" };
+          }
+          const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+          if (!content) return { text: "The model returned an empty answer. Try the question again.", source: "Could not answer" };
+          return { text: content.trim(), source: "gpt-4o-mini", ok: true };
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            return {
+              text: timedOut ? "That request took too long. Try again." : "That request was cancelled.",
+              source: "Could not answer",
+              dropped: !timedOut
+            };
+          }
+          return { text: "Could not reach OpenAI. Check the connection, or remove the key to use the Week 1 notes.", source: "Could not answer" };
+        } finally {
+          clearTimeout(timeout);
+          if (inflight === controller) inflight = null;
+        }
+      }
+
+      async function ask(prompt) {
+        const cleaned = prompt.trim().slice(0, 4000);
+        if (!cleaned || send.disabled) return;
+        const id = requestId;
+        appendMessage("user", cleaned);
+        question.value = "";
+        autosize();
+        setBusy(true);
+        const pending = appendMessage("assistant", "Thinking…", hasKey() ? "gpt-4o-mini" : "Week 1 notes", true);
+        const result = hasKey() ? await replyLive(cleaned) : replyLocal(cleaned);
+        if (id !== requestId || result.dropped) return;
+        pending.remove();
+        appendMessage("assistant", result.text, result.source);
+        if (result.ok) {
+          history.push({ role: "user", content: cleaned });
+          history.push({ role: "assistant", content: result.text });
+        }
+        setBusy(false);
+        question.focus();
+      }
+
+      composer.addEventListener("submit", (event) => {
+        event.preventDefault();
+        ask(question.value);
+      });
+
+      question.addEventListener("input", autosize);
+      question.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          if (!send.disabled) composer.requestSubmit();
+        }
+      });
+
+      document.getElementById("new-chat").addEventListener("click", () => {
+        requestId += 1;
+        if (inflight) inflight.abort();
+        history = [];
+        resetLocal();
+        setBusy(false);
+        showEmpty();
+        question.focus();
+      });
+
+      menu.addEventListener("click", () => setMenu(!sidebar.classList.contains("open")));
+      backdrop.addEventListener("click", () => setMenu(false));
+
+      settings.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const next = cleanKey(keyInput.value);
+        keyInput.value = "";
+        if (!next) {
+          mode.textContent = "Paste the key by itself. It is not saved until it looks complete.";
+          return;
+        }
+        storeSet(KEY_NAME, next);
+        history = [];
+        refreshKeyUi();
+        setMenu(false);
+      });
+
+      forget.addEventListener("click", () => {
+        storeRemove(KEY_NAME);
+        history = [];
+        refreshKeyUi();
+      });
+
+      voice.addEventListener("change", () => {
+        if (Object.prototype.hasOwnProperty.call(VOICES, voice.value)) storeSet(VOICE_NAME, voice.value);
+      });
+
+      temperature.addEventListener("input", () => {
+        const value = Number(temperature.value).toFixed(1);
+        temperatureValue.textContent = value;
+        storeSet(TEMP_NAME, value);
+      });
+
+      refreshKeyUi();
+      showEmpty();
+      question.focus();
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("DOMContentLoaded", init);
+    }
+  </script>
+</body>
+</html>
